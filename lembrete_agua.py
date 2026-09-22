@@ -3,6 +3,10 @@ from tkinter import ttk
 import json
 import os
 import datetime
+import pystray
+import queue
+
+from PIL import Image, ImageDraw
 
 # =========================
 # CONFIGURAÇÕES
@@ -32,12 +36,21 @@ class LembreteAgua:
         self.timer_fechar = None
         self.timer_contagem = None
         self.pausado = False
+        self.fila_acoes = queue.Queue()
+        self.icone_bandeja = None
         
         self.total_bebido = self.carregar_dados()
         
         self.intervalo_nome, self.intervalo_segundos = self.carregar_intervalo()
         self.criar_janela_principal()
-
+        
+        #Ao clicar no X, esconde em vez de encerrar
+        self.root.protocol("WM_DELETE_WINDOW", self.ocultar_janela)
+        
+        # Inicia o icone perto do relógio
+        self.iniciar_icone_bandeja()
+        # Verifica comandos vindos do ícone
+        self.processar_fila()
         # Começa a contagem
         self.agendar_aviso()
         
@@ -83,6 +96,30 @@ class LembreteAgua:
                 with open(ARQUIVO_DADOS, "w", encoding="utf-8") as arquivo:
                     json.dump(dados, arquivo, indent=4, ensure_ascii=False)
                     
+    def ocultar_janela(self):
+        self.root.withdraw()
+        
+    def abrir_janela(self):
+        self.root.deiconify()
+        self.root.lift()
+        self.root.focus_force()
+        
+    def solicitar_abrir(self, icon=None, item=None):
+        self.fila_acoes.put("abrir") 
+        
+    def solicitar_sair(self, icon=None, item=None):
+        self.fila_acoes.put("sair")
+        
+    def processar_fila(self):
+         try:
+            while True:
+                acao = self.fila_acoes.get_nowait()
+                if acao == "abrir":
+                    self.abrir_janela()
+                elif acao == "sair":
+                    self.sair_programa()
+                    return
+                                   
     def criar_janela_principal(self):
         
         titulo = tk.Label(
