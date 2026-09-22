@@ -23,7 +23,7 @@ class LembreteAgua:
         self.root = root
         
         self.root.title("Lembrete de Água")
-        self.root.geometry("350x300")
+        self.root.geometry("450x450")
         self.root.resizable(False, False)
 
         # self.root.withdraw()
@@ -31,13 +31,12 @@ class LembreteAgua:
         self.popup = None
         self.timer_fechar = None
         self.timer_contagem = None
-        
-        self.segundos_restantes = INTERVALO_SEGUNDOS
+        self.pausado = False
         
         self.total_bebido = self.carregar_dados()
         
+        self.intervalo_nome, self.intervalo_segundos = self.carregar_intervalo()
         self.criar_janela_principal()
-        self.root.after(100, self.agendar_aviso)
 
         # Começa a contagem
         self.agendar_aviso()
@@ -59,14 +58,31 @@ class LembreteAgua:
         except:
             return 0
 
+    def carregar_intervalo(self):
+        if not os.path.exists(ARQUIVO_DADOS):
+            return "Teste-10 segundos"
+        INTERVALO_SEGUNDOS
+        
+        try:
+            with open(ARQUIVO_DADOS, "r", encoding="utf-8") as arquivo:
+                dados = json.load(arquivo)
+                
+            nome = dados.get("intervalo_nome", "Teste-10 segundos")
+            segundos = dados.get("intervalo_segundos", INTERVALO_SEGUNDOS)
+            return nome, segundos
+        except:
+            return "Teste-10 segundos", INTERVALO_SEGUNDOS
+           
     def salvar_dados(self):
                 dados = {
                     "data":str(datetime.date.today()),
-                    "total_bebido":self.total_bebido
+                    "total_bebido":self.total_bebido,
+                    "intervalo_segundos":self.intervalo_segundos,
+                    "intervalo_nome":self.opcao_intervalo.get()
                 }
                 
                 with open(ARQUIVO_DADOS, "w", encoding="utf-8") as arquivo:
-                    json.dump(dados, arquivo, indent=4)
+                    json.dump(dados, arquivo, indent=4, ensure_ascii=False)
                     
     def criar_janela_principal(self):
         
@@ -96,7 +112,7 @@ class LembreteAgua:
         
         self.label_proximo_aviso = tk.Label(
             self.root,
-            text=f"Próximo aviso: 00: {INTERVALO_SEGUNDOS:02d}",
+            text=f"Próximo aviso:00:{INTERVALO_SEGUNDOS:02d}",
             font=("Segoe UI", 12)
         )
         
@@ -110,6 +126,41 @@ class LembreteAgua:
             width=18
         )
         
+        label_intervalo = tk.Label(
+            self.root,
+            text="Intervalo dos lembretes:",
+            font=("Segoe UI", 10)
+        )
+        label_intervalo.pack(pady=(5, 2))
+        
+        self.opcao_intervalo = tk.StringVar(value=self.intervalo_nome)
+        
+        self.combo_intervalo = ttk.Combobox(
+            self.root,
+            textvariable=self.opcao_intervalo,
+            state="readonly",
+            width=20
+        )
+        self.combo_intervalo["values"] =(
+                "Teste-10 segundos",
+                "30 minutos",
+                "45 minutos",
+                "60 minutos",
+                "90 minutos",
+            )
+        self.combo_intervalo.pack(pady=5)
+        
+        self.combo_intervalo.bind("<<ComboboxSelected>>", self.alterar_intervalo)
+        
+        self.botao_pausar=tk.Button(
+            self.root,
+            text="Pausar lembretes",
+            font=("Segoe UI", 10,),
+            command=self.alternar_pausa,
+            width=18
+        )
+        self.botao_pausar.pack(pady=5)
+        
         botao_adicionar.pack(pady=5)
         
         botao_sair=tk.Button(
@@ -122,21 +173,60 @@ class LembreteAgua:
         
         botao_sair.pack(pady=10)
             
+    def alterar_intervalo(self, event=None):
+        opcao = self.opcao_intervalo.get()
+        if opcao == "Teste-10 segundos":
+            self.intervalo_segundos = 10
+        elif opcao == "30 minutos":
+            self.intervalo_segundos = 30 * 60
+        elif opcao == "45 minutos":
+            self.intervalo_segundos = 45 * 60
+        elif opcao == "60 minutos":
+            self.intervalo_segundos = 60 * 60
+        elif opcao == "90 minutos":
+            self.intervalo_segundos = 90 * 60
+            self.salvar_dados()
+            self.agendar_aviso()
+                    
+    def alternar_pausa(self):
+        if not self.pausado:
+            #Pausar
+            self.pausado = True
+            
+            if self.timer_contagem is not None:
+                try:
+                    self.root.after_cancel(self.timer_contagem)
+                except:
+                    pass
+                
+                self.timer_contagem = None
+                self.label_proximo_aviso.config(
+                    text="Lembretes pausados"
+                )
+                self.botao_pausar.config(text="Continuar lembretes")
+        else:
+            #Continuar
+            self.pausado = False
+            
+            self.botao_pausar.config(text="Pausar lembretes")
+            self.agendar_aviso()        
                             
     def agendar_aviso(self):
-        #Cancela uma contagem anterior se existir
-        if self.timer_fechar is not None:
+        
+        if self.pausado:
+            return
+        if self.timer_contagem is not None:
             try:
                 self.root.after_cancel(self.timer_contagem)
             except:
                 pass
-            
-            self.segundos_restantes = INTERVALO_SEGUNDOS
-            
-            self.atualizar_contagem()
+            self.timer_contagem = None
+        self.segundos_restantes = self.intervalo_segundos
+        self.atualizar_contagem()
 
     def atualizar_contagem(self):
-        
+        if self.pausado:
+            return
         minutos, segundos = divmod(self.segundos_restantes, 60)
         
         self.label_proximo_aviso.config(
@@ -289,7 +379,7 @@ class LembreteAgua:
             self.timer_fechar = None
 
         # Começa a contar novamente
-        self.agendar_aviso()
+            self.agendar_aviso()
 
 
 # =========================
