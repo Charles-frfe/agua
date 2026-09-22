@@ -60,8 +60,7 @@ class LembreteAgua:
 
     def carregar_intervalo(self):
         if not os.path.exists(ARQUIVO_DADOS):
-            return "Teste-10 segundos"
-        INTERVALO_SEGUNDOS
+            return "Teste-10 segundos", INTERVALO_SEGUNDOS
         
         try:
             with open(ARQUIVO_DADOS, "r", encoding="utf-8") as arquivo:
@@ -185,8 +184,8 @@ class LembreteAgua:
             self.intervalo_segundos = 60 * 60
         elif opcao == "90 minutos":
             self.intervalo_segundos = 90 * 60
-            self.salvar_dados()
-            self.agendar_aviso()
+        self.salvar_dados()
+        self.agendar_aviso()
                     
     def alternar_pausa(self):
         if not self.pausado:
