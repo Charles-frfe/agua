@@ -154,60 +154,90 @@ class LembreteAgua:
         desenho = ImageDraw.Draw(imagem)
         
         # Desenha uma gota simples
-        desenho.ellipse((18, 24, 46, 52), fill="#1976D2", outline="black")
+        desenho.ellipse(
+            (18, 24, 46, 52),
+            fill="#1976D2",
+            outline="black"
+            )
         
-        desenho.polygon([(32, 8), (18, 34), (46, 34)], fill="#1976D2", outline="black")
+        desenho.polygon(
+            [(32, 8), (18, 34), (46, 34)],
+            fill="#1976D2",
+            outline="black"
+            )
         
+        #Submenu de intervalos
         menu_intervalo = pystray.Menu(
+            
             pystray.MenuItem(
-                "Intervalo: Teste-10 segundos",
-                lambda icon, item: self.solicitar_intervalo("Teste-10 segundos")
+                "Teste-10 segundos",
+                lambda icon, item:
+                self.solicitar_intervalo("Teste-10 segundos")
             ),
             
             pystray.MenuItem(
                 "30 minutos",
-                lambda icon, item: self.solicitar_intervalo("30 minutos")
+                lambda icon, item:
+                self.solicitar_intervalo("30 minutos")
             ),
+            
             pystray.MenuItem(
                 "45 minutos",
-                lambda icon, item: self.solicitar_intervalo("45 minutos")
+                lambda icon, item:
+                self.solicitar_intervalo("45 minutos")
             ),
+            
             pystray.MenuItem(
                 "60 minutos",
-                lambda icon, item: self.solicitar_intervalo("60 minutos")
+                lambda icon, item:
+                self.solicitar_intervalo("60 minutos")
             ),
             
             pystray.MenuItem(
                 "90 minutos",
-                lambda icon, item: self.solicitar_intervalo("90 minutos")
-            ),
+                lambda icon, item:
+                self.solicitar_intervalo("90 minutos")
+            )
+        )
             
-            menu=pystray.Menu(
+            # Menu principal
+        menu=pystray.Menu(
                 
-                pystray.MenuItem(
+            pystray.MenuItem(
                     f"💧 Bebi {QUANTIDADE_ML} ml",
                     self.solicitar_beber
                 ),
-                pystray.MenuItem(
+            
+            pystray.MenuItem(
                     "⏸️ Pausar/Continuar lembretes",
                     self.solicitar_pausa
                 ),
-                pystray.MenuItem(
-                    "Abrir janela",
-                    self.solicitar_abrir
+            
+            pystray.MenuItem(
+                    "Intervalo",
+                    menu_intervalo
                 ),
-                pystray.MenuItem(
+            
+            pystray.Menu.SEPARATOR,
+            
+            pystray.MenuItem(
+                    "Abrir painel",
+                    self.solicitar_abrir,
+                    default=True
+                ),
+            
+            pystray.MenuItem(
                     "Sair",
                     self.solicitar_sair
                 )
             )
-        )
         self.icone_bandeja = pystray.Icon(
-            "Lembrete de Água",
+            "lembrete_agua",
             imagem,
             "Lembrete de Água",
-            menu_intervalo
+            menu
         )
+        
         self.icone_bandeja.run_detached()
         
     def sair_programa(self):
