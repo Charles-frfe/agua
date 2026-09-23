@@ -43,6 +43,7 @@ class LembreteAgua:
         
         self.intervalo_nome, self.intervalo_segundos = self.carregar_intervalo()
         self.criar_janela_principal()
+        self.root.withdraw()  # Esconde a janela principal inicialmente
         
         #Ao clicar no X, esconde em vez de encerrar
         self.root.protocol("WM_DELETE_WINDOW", self.ocultar_janela)
@@ -103,7 +104,15 @@ class LembreteAgua:
         self.root.deiconify()
         self.root.lift()
         self.root.focus_force()
+    def solicitar_beber (self, icon=None, item=None):
+        self.fila_acoes.put(("beber",None))
         
+    def solicitar_pausa(self, icon=None, item=None):
+        self.fila_acoes.put(("pausa",None))
+        
+    def solicitar_intervalo(self, nome):
+        self.fila_acoes.put(("intervalo", nome))
+                    
     def solicitar_abrir(self, icon=None, item=None):
         self.fila_acoes.put("abrir") 
         
@@ -114,11 +123,26 @@ class LembreteAgua:
         try:
             while True:
                 acao = self.fila_acoes.get_nowait()
+                
+                #Aceita comandos antigos
                 if acao == "abrir":
                     self.abrir_janela()
+                    
                 elif acao == "sair":
                     self.sair_programa()
                     return
+                
+                #novos comandos da bandeja
+                elif isinstance(acao, tuple):
+                    comando, valor = acao
+                    if comando == "beber":
+                        self.bebi_agua()
+                    elif comando == "pausa":
+                        self.alternar_pausa()
+                    elif comando == "intervalo":
+                        self.opcao_intervalo.set(valor)
+                        self.alterar_intervalo()
+                        
         except queue.Empty:
             pass
 
@@ -134,26 +158,56 @@ class LembreteAgua:
         
         desenho.polygon([(32, 8), (18, 34), (46, 34)], fill="#1976D2", outline="black")
         
-        menu = pystray.Menu(
+        menu_intervalo = pystray.Menu(
             pystray.MenuItem(
-                "Abrir",
-                self.solicitar_abrir,
-            default=True
+                "Intervalo: Teste-10 segundos",
+                lambda icon, item: self.solicitar_intervalo("Teste-10 segundos")
             ),
-        
+            
             pystray.MenuItem(
-                "Sair",
-                self.solicitar_sair
-            )   
-        )   
-        
+                "30 minutos",
+                lambda icon, item: self.solicitar_intervalo("30 minutos")
+            ),
+            pystray.MenuItem(
+                "45 minutos",
+                lambda icon, item: self.solicitar_intervalo("45 minutos")
+            ),
+            pystray.MenuItem(
+                "60 minutos",
+                lambda icon, item: self.solicitar_intervalo("60 minutos")
+            ),
+            
+            pystray.MenuItem(
+                "90 minutos",
+                lambda icon, item: self.solicitar_intervalo("90 minutos")
+            ),
+            
+            menu=pystray.Menu(
+                
+                pystray.MenuItem(
+                    f"💧 Bebi {QUANTIDADE_ML} ml",
+                    self.solicitar_beber
+                ),
+                pystray.MenuItem(
+                    "⏸️ Pausar/Continuar lembretes",
+                    self.solicitar_pausa
+                ),
+                pystray.MenuItem(
+                    "Abrir janela",
+                    self.solicitar_abrir
+                ),
+                pystray.MenuItem(
+                    "Sair",
+                    self.solicitar_sair
+                )
+            )
+        )
         self.icone_bandeja = pystray.Icon(
-            "lembrete_agua",
+            "Lembrete de Água",
             imagem,
             "Lembrete de Água",
-            menu
+            menu_intervalo
         )
-        
         self.icone_bandeja.run_detached()
         
     def sair_programa(self):
