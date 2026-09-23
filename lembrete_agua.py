@@ -48,7 +48,7 @@ class LembreteAgua:
         self.root.protocol("WM_DELETE_WINDOW", self.ocultar_janela)
         
         # Inicia o icone perto do relógio
-        self.iniciar_icone_bandeja()
+        self.criar_icone_bandeja()
         # Verifica comandos vindos do ícone
         self.processar_fila()
         # Começa a contagem
@@ -111,7 +111,7 @@ class LembreteAgua:
         self.fila_acoes.put("sair")
         
     def processar_fila(self):
-         try:
+        try:
             while True:
                 acao = self.fila_acoes.get_nowait()
                 if acao == "abrir":
@@ -119,7 +119,48 @@ class LembreteAgua:
                 elif acao == "sair":
                     self.sair_programa()
                     return
-                                   
+        except queue.Empty:
+            pass
+
+        self.root.after(100, self.processar_fila)
+        
+    def criar_icone_bandeja(self):
+        
+        imagem = Image.new("RGB", (64, 64), "white")
+        desenho = ImageDraw.Draw(imagem)
+        
+        # Desenha uma gota simples
+        desenho.ellipse((18, 24, 46, 52), fill="#1976D2", outline="black")
+        
+        desenho.polygon([(32, 8), (18, 34), (46, 34)], fill="#1976D2", outline="black")
+        
+        menu = pystray.Menu(
+            pystray.MenuItem(
+                "Abrir",
+                self.solicitar_abrir,
+            default=True
+            ),
+        
+            pystray.MenuItem(
+                "Sair",
+                self.solicitar_sair
+            )   
+        )   
+        
+        self.icone_bandeja = pystray.Icon(
+            "lembrete_agua",
+            imagem,
+            "Lembrete de Água",
+            menu
+        )
+        
+        self.icone_bandeja.run_detached()
+        
+    def sair_programa(self):
+        if self.icone_bandeja is not None:
+            self.icone_bandeja.stop()
+        self.root.destroy() 
+           
     def criar_janela_principal(self):
         
         titulo = tk.Label(
@@ -203,7 +244,7 @@ class LembreteAgua:
             self.root,
             text="Sair",
             font=("Segoe UI", 10),
-            command=self.root.destroy,
+            command=self.sair_programa,
             width=18
         )
         
