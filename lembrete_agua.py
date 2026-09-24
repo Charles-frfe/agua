@@ -16,10 +16,10 @@ INTERVALO_SEGUNDOS = 10
 DURACAO_AVISO_SEGUNDOS = 120
 QUANTIDADE_ML = 200
 META_DIARIA_ML=2000
-ARQUIVO_DADOS= os.path.join(
-    os.path.dirname(os.path.abspath(__file__))
-    , "agua_dados.json")
+PASTA_DADOS = os.path.join(os.getenv("APPDATA"), ".lembrete_agua")
 
+os.makedirs(PASTA_DADOS, exist_ok=True)
+ARQUIVO_DADOS = os.path.join(PASTA_DADOS, "agua_dados.json")
 
 class LembreteAgua:
 
