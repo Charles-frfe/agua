@@ -1,5 +1,5 @@
 import tkinter as tk
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import json
 import os
 import datetime
@@ -13,10 +13,11 @@ from PIL import Image, ImageDraw
 # =========================
 
 INTERVALO_SEGUNDOS = 10
-DURACAO_AVISO_SEGUNDOS = 120
+DURACAO_AVISO_SEGUNDOS = 20
 QUANTIDADE_ML = 200
 META_DIARIA_ML=2000
 PASTA_DADOS = os.path.join(os.getenv("APPDATA"), ".lembrete_agua")
+ADIAR_AVISO_SEGUNDOS = 10 *60  # 10 minutos
 
 os.makedirs(PASTA_DADOS, exist_ok=True)
 ARQUIVO_DADOS = os.path.join(PASTA_DADOS, "agua_dados.json")
@@ -27,7 +28,7 @@ class LembreteAgua:
         self.root = root
         
         self.root.title("Lembrete de Água")
-        self.root.geometry("450x450")
+        self.root.geometry("450x500")
         self.root.resizable(False, False)
 
         # self.root.withdraw()
@@ -40,6 +41,7 @@ class LembreteAgua:
         self.icone_bandeja = None
         
         self.total_bebido = self.carregar_dados()
+        self.data_atual = str(datetime.date.today())
         
         self.intervalo_nome, self.intervalo_segundos = self.carregar_intervalo()
         self.criar_janela_principal()
@@ -54,6 +56,7 @@ class LembreteAgua:
         self.processar_fila()
         # Começa a contagem
         self.agendar_aviso()
+        self.verificar_mudanca_dia()
         
     def carregar_dados(self):
         hoje = str(datetime.date.today())
@@ -96,7 +99,21 @@ class LembreteAgua:
                 
                 with open(ARQUIVO_DADOS, "w", encoding="utf-8") as arquivo:
                     json.dump(dados, arquivo, indent=4, ensure_ascii=False)
-                    
+
+    def verificar_mudanca_dia(self):
+        hoje = str(datetime.date.today())
+
+        if hoje != self.data_atual:
+           self.data_atual = hoje
+           self.total_bebido = 0
+
+           self.atualizar_display()
+
+           print("Novo dia: Consumo de água zerado.")
+
+        #Verifica novamente em 1 minuto
+        self.root.after(60 * 1000, self.verificar_mudanca_dia)
+
     def ocultar_janela(self):
         self.root.withdraw()
         
@@ -106,7 +123,10 @@ class LembreteAgua:
         self.root.focus_force()
     def solicitar_beber (self, icon=None, item=None):
         self.fila_acoes.put(("beber",None))
-        
+
+    def solicitar_zerar(self, icon=None, item=None):
+        self.fila_acoes.put(("zerar",None))
+            
     def solicitar_pausa(self, icon=None, item=None):
         self.fila_acoes.put(("pausa",None))
         
@@ -137,6 +157,8 @@ class LembreteAgua:
                     comando, valor = acao
                     if comando == "beber":
                         self.bebi_agua()
+                    elif comando == "zerar":
+                        self.zerar_agua()
                     elif comando == "pausa":
                         self.alternar_pausa()
                     elif comando == "intervalo":
@@ -209,6 +231,11 @@ class LembreteAgua:
                 ),
             
             pystray.MenuItem(
+                    "🔄 Zerar água",
+                    self.solicitar_zerar
+                ),
+
+            pystray.MenuItem(
                     "⏸️ Pausar/Continuar lembretes",
                     self.solicitar_pausa
                 ),
@@ -244,7 +271,19 @@ class LembreteAgua:
         if self.icone_bandeja is not None:
             self.icone_bandeja.stop()
         self.root.destroy() 
-           
+
+    def destruir_popup(self):
+        if self.popup is not None:
+            try:
+                if self.timer_fechar is not None:
+                    self.popup.after_cancel(self.timer_fechar)
+            except:
+                pass
+
+            self.popup.destroy()
+            self.popup = None
+            self.timer_fechar = None
+
     def criar_janela_principal(self):
         
         titulo = tk.Label(
@@ -323,7 +362,16 @@ class LembreteAgua:
         self.botao_pausar.pack(pady=5)
         
         botao_adicionar.pack(pady=5)
-        
+
+        botao_zerar=tk.Button(
+            self.root,
+            text="🔄 Zerar água",
+            font=("Segoe UI", 10,),
+            command=self.zerar_agua,
+            width=18
+        )       
+        botao_zerar.pack(pady=5)
+
         botao_sair=tk.Button(
             self.root,
             text="Sair",
@@ -413,7 +461,7 @@ class LembreteAgua:
         self.popup.attributes("-topmost", True)
 
         largura = 340
-        altura = 260
+        altura = 300
 
         largura_tela = self.popup.winfo_screenwidth()
 
@@ -479,6 +527,17 @@ class LembreteAgua:
         )
         botao_bebi.pack(pady=8)
 
+        botao_adiar=tk.Button(
+            self.popup,
+            text="⏰ Adiar lembrete",
+            font=("Segoe UI",10,"bold"),
+            command= self.adiar_aviso,
+            bg="white",
+            fg="#1976D2",
+            relief="flat",
+            cursor="hand2"
+        )
+
         dica = tk.Label(
             self.popup,
             text="Clique para fechar",
@@ -500,6 +559,18 @@ class LembreteAgua:
             DURACAO_AVISO_SEGUNDOS * 1000,
             self.fechar_aviso
         )
+
+    def zerar_agua(self):
+        confirmar = messagebox.askyesno(
+            "Zerar água",
+            "Deseja zerar a quantidade de água bebida hoje?"
+        )
+        if not confirmar:
+                return
+
+        self.total_bebido = 0
+        self.salvar_dados()
+        self.atualizar_janela_principal()
 
     def bebi_agua(self):
         self.total_bebido += QUANTIDADE_ML
@@ -525,22 +596,22 @@ class LembreteAgua:
         self.barra_principal["value"] = min(self.total_bebido, META_DIARIA_ML)
          
     def fechar_aviso(self, event=None):
-        """Fecha o aviso e inicia uma nova contagem."""
+        self.destruir_popup()
 
-        if self.popup is not None:
+        #Começa novamente o intervalo normal
+        self.agendar_aviso()
+    def adiar_aviso(self):
+        self.destruir_popup()
 
+        if self.timer_contagem is not None:
             try:
-                if self.timer_fechar is not None:
-                    self.popup.after_cancel(self.timer_fechar)
+                self.root.after_cancel(self.timer_contagem)
             except:
                 pass
+            self.timer_contagem = None
 
-            self.popup.destroy()
-            self.popup = None
-            self.timer_fechar = None
-
-        # Começa a contar novamente
-            self.agendar_aviso()
+            self.segundos_restantes = ADIAR_AVISO_SEGUNDOS
+            self.atualizar_contagem()
 
 
 # =========================
