@@ -17,7 +17,7 @@ DURACAO_AVISO_SEGUNDOS = 20
 QUANTIDADE_ML = 200
 META_DIARIA_ML=2000
 PASTA_DADOS = os.path.join(os.getenv("APPDATA"), ".lembrete_agua")
-ADIAR_AVISO_SEGUNDOS = 10 *60  # 10 minutos
+ADIAR_AVISO_SEGUNDOS = 10 *60 
 
 os.makedirs(PASTA_DADOS, exist_ok=True)
 ARQUIVO_DADOS = os.path.join(PASTA_DADOS, "agua_dados.json")
@@ -28,8 +28,9 @@ class LembreteAgua:
         self.root = root
         
         self.root.title("Lembrete de Água")
-        self.root.geometry("450x500")
+        self.root.geometry("450x560")
         self.root.resizable(False, False)
+        self.root.configure(bg="#F4F7FB")
 
         # self.root.withdraw()
 
@@ -104,16 +105,19 @@ class LembreteAgua:
         hoje = str(datetime.date.today())
 
         if hoje != self.data_atual:
-           self.data_atual = hoje
-           self.total_bebido = 0
+            self.data_atual = hoje
+            self.total_bebido = 0
 
-           self.atualizar_display()
+            self.salvar_dados()
+            self.atualizar_janela_principal()
 
-           print("Novo dia: Consumo de água zerado.")
+        print("Novo dia: consumo de água zerado.")
 
-        #Verifica novamente em 1 minuto
-        self.root.after(60 * 1000, self.verificar_mudanca_dia)
-
+    # Verifica novamente a cada minuto
+        self.root.after(
+        60 * 1000,
+        self.verificar_mudanca_dia
+    )
     def ocultar_janela(self):
         self.root.withdraw()
         
@@ -231,7 +235,7 @@ class LembreteAgua:
                 ),
             
             pystray.MenuItem(
-                    "🔄 Zerar água",
+                    "🔄 Resetar Consumo",
                     self.solicitar_zerar
                 ),
 
@@ -285,103 +289,379 @@ class LembreteAgua:
             self.timer_fechar = None
 
     def criar_janela_principal(self):
-        
-        titulo = tk.Label(
-            self.root,
-            text="💧 Água hoje",
-            font=("Segoe UI", 20, "bold"))
-        titulo.pack(pady=(25, 10))
-         
-        self.label_total = tk.Label(
+
+      # =========================
+      # CORES
+      # =========================
+
+      fundo = "#F4F7FB"
+      branco = "#FFFFFF"
+      azul = "#1976D2"
+      azul_escuro = "#155AA8"
+      texto = "#1E293B"
+      texto_secundario = "#64748B"
+      borda = "#E2E8F0"
+      verde = "#16A34A"
+      cinza_botao = "#E9EEF5"
+
+      self.root.configure(bg=fundo)
+
+      # =========================
+      # ESTILO DA BARRA
+      # =========================
+
+      estilo = ttk.Style()
+
+      estilo.configure(
+        "Agua.Horizontal.TProgressbar",
+        troughcolor="#E8EEF5",
+        background=azul,
+        thickness=12
+      )
+
+      # =========================
+      # CONTAINER
+      # =========================
+
+      container = tk.Frame(
              self.root,
-                text=f"{self.total_bebido}/{META_DIARIA_ML} ml",
-                font=("Segoe UI", 16,)   
-            )
-        self.label_total.pack(pady=5)
-        
-        self.barra_principal=ttk.Progressbar(
-            self.root,
-            orient="horizontal",
-            length=280,
-            mode="determinate",
-            maximum=META_DIARIA_ML,
-            value=min(self.total_bebido, META_DIARIA_ML)
-        )
-        
-        self.barra_principal.pack(pady=15)
-        
-        self.label_proximo_aviso = tk.Label(
-            self.root,
-            text=f"Próximo aviso:00:{INTERVALO_SEGUNDOS:02d}",
-            font=("Segoe UI", 12)
-        )
-        
-        self.label_proximo_aviso.pack(pady=5)
+             bg=fundo
+      )
 
-        botao_adicionar=tk.Button(
-            self.root,
-            text=f"💧 + {QUANTIDADE_ML} ml",
-            font=("Segoe UI", 11, "bold"),
-            command=self.bebi_agua,
-            width=18
-        )
-        
-        label_intervalo = tk.Label(
-            self.root,
-            text="Intervalo dos lembretes:",
-            font=("Segoe UI", 10)
-        )
-        label_intervalo.pack(pady=(5, 2))
-        
-        self.opcao_intervalo = tk.StringVar(value=self.intervalo_nome)
-        
-        self.combo_intervalo = ttk.Combobox(
-            self.root,
-            textvariable=self.opcao_intervalo,
-            state="readonly",
-            width=20
-        )
-        self.combo_intervalo["values"] =(
-                "Teste-10 segundos",
-                "30 minutos",
-                "45 minutos",
-                "60 minutos",
-                "90 minutos",
-            )
-        self.combo_intervalo.pack(pady=5)
-        
-        self.combo_intervalo.bind("<<ComboboxSelected>>", self.alterar_intervalo)
-        
-        self.botao_pausar=tk.Button(
-            self.root,
-            text="Pausar lembretes",
-            font=("Segoe UI", 10,),
-            command=self.alternar_pausa,
-            width=18
-        )
-        self.botao_pausar.pack(pady=5)
-        
-        botao_adicionar.pack(pady=5)
+      container.pack(
+        fill="both",
+        expand=True,
+        padx=22,
+        pady=18
+      )
 
-        botao_zerar=tk.Button(
-            self.root,
-            text="🔄 Zerar água",
-            font=("Segoe UI", 10,),
-            command=self.zerar_agua,
-            width=18
-        )       
-        botao_zerar.pack(pady=5)
+      # =========================
+      # CABEÇALHO
+      # =========================
 
-        botao_sair=tk.Button(
-            self.root,
-            text="Sair",
-            font=("Segoe UI", 10),
-            command=self.sair_programa,
-            width=18
-        )
-        
-        botao_sair.pack(pady=10)
-            
+      tk.Label(
+        container,
+        text="💧 Lembrete de Água",
+        font=("Segoe UI", 20, "bold"),
+        bg=fundo,
+        fg=texto
+      ).pack(anchor="w")
+
+      tk.Label(
+        container,
+        text="Acompanhe sua hidratação ao longo do dia",
+        font=("Segoe UI", 9),
+        bg=fundo,
+        fg=texto_secundario
+      ).pack(
+        anchor="w",
+        pady=(0, 14)
+      )
+
+      # =========================
+      # CARD PRINCIPAL
+      # =========================
+
+      card_agua = tk.Frame(
+        container,
+        bg=branco,
+        highlightbackground=borda,
+        highlightthickness=1
+      )
+
+      card_agua.pack(
+        fill="x",
+        pady=(0, 12)
+      )
+
+      tk.Label(
+        card_agua,
+        text="Água hoje",
+        font=("Segoe UI", 10),
+        bg=branco,
+        fg=texto_secundario
+      ).pack(
+        anchor="w",
+        padx=18,
+        pady=(14, 0)
+      )
+
+      self.label_total = tk.Label(
+        card_agua,
+        text=f"{self.total_bebido} / {META_DIARIA_ML} ml",
+        font=("Segoe UI", 26, "bold"),
+        bg=branco,
+        fg=azul
+      )
+
+      self.label_total.pack(
+        anchor="w",
+        padx=18,
+        pady=(2, 8)
+      )
+
+      self.barra_principal = ttk.Progressbar(
+        card_agua,
+        style="Agua.Horizontal.TProgressbar",
+        orient="horizontal",
+        mode="determinate",
+        maximum=META_DIARIA_ML,
+        value=min(self.total_bebido, META_DIARIA_ML)
+      )
+
+      self.barra_principal.pack(
+        fill="x",
+        padx=18
+      )
+
+      percentual = min(
+        int((self.total_bebido / META_DIARIA_ML) * 100),
+        100
+      )
+
+      self.label_percentual = tk.Label(
+        card_agua,
+        text=f"{percentual}% da meta diária",
+        font=("Segoe UI", 9, "bold"),
+        bg=branco,
+        fg=texto_secundario
+      )
+
+      self.label_percentual.pack(
+        anchor="w",
+        padx=18,
+        pady=(7, 0)
+      )
+
+      faltam = max(
+        META_DIARIA_ML - self.total_bebido,
+        0
+      )
+
+      self.label_faltam = tk.Label(
+        card_agua,
+        text=f"Faltam {faltam} ml para atingir sua meta",
+        font=("Segoe UI", 9),
+        bg=branco,
+        fg=texto_secundario
+      )
+
+      self.label_faltam.pack(
+        anchor="w",
+        padx=18,
+        pady=(1, 14)
+      )
+
+      # =========================
+      # CARD LEMBRETE
+      # =========================
+
+      card_lembrete = tk.Frame(
+        container,
+        bg=branco,
+        highlightbackground=borda,
+        highlightthickness=1
+      )
+
+      card_lembrete.pack(
+        fill="x",
+        pady=(0, 12)
+      )
+
+      linha_status = tk.Frame(
+        card_lembrete,
+        bg=branco
+      )
+
+      linha_status.pack(
+        fill="x",
+        padx=18,
+        pady=(12, 3)
+      )
+
+      tk.Label(
+        linha_status,
+        text="Próximo lembrete",
+        font=("Segoe UI", 9),
+        bg=branco,
+        fg=texto_secundario
+      ).pack(side="left")
+
+      self.label_status = tk.Label(
+        linha_status,
+        text="● Ativo",
+        font=("Segoe UI", 9, "bold"),
+        bg=branco,
+        fg=verde
+      )
+
+      self.label_status.pack(side="right")
+
+      self.label_proximo_aviso = tk.Label(
+        card_lembrete,
+        text="00:00",
+        font=("Segoe UI", 21, "bold"),
+        bg=branco,
+        fg=texto
+      )
+
+      self.label_proximo_aviso.pack(
+        anchor="w",
+        padx=18,
+        pady=(0, 12)
+      )
+
+      # =========================
+      # INTERVALO
+      # =========================
+
+      frame_intervalo = tk.Frame(
+        container,
+        bg=fundo
+      )
+
+      frame_intervalo.pack(
+        fill="x",
+        pady=(1, 12)
+      )
+
+      tk.Label(
+        frame_intervalo,
+        text="Intervalo dos lembretes",
+        font=("Segoe UI", 9, "bold"),
+        bg=fundo,
+        fg=texto
+      ).pack(anchor="w")
+
+      self.opcao_intervalo = tk.StringVar(
+        value=self.intervalo_nome
+      )
+
+      self.combo_intervalo = ttk.Combobox(
+        frame_intervalo,
+        textvariable=self.opcao_intervalo,
+        state="readonly",
+        font=("Segoe UI", 10)
+      )
+
+      self.combo_intervalo["values"] = (
+        "Teste-10 segundos",
+        "30 minutos",
+        "45 minutos",
+        "60 minutos",
+        "90 minutos"
+      )
+
+      self.combo_intervalo.pack(
+        fill="x",
+        pady=(5, 0)
+      )
+
+      self.combo_intervalo.bind(
+        "<<ComboboxSelected>>",
+        self.alterar_intervalo
+      )
+
+      # =========================
+      # BOTÕES
+      # =========================
+
+      botoes = tk.Frame(
+        container,
+        bg=fundo
+      )
+
+      botoes.pack(
+        fill="x"
+      )
+
+      botoes.columnconfigure(0, weight=1)
+      botoes.columnconfigure(1, weight=1)
+
+      botao_adicionar = tk.Button(
+        botoes,
+        text=f"💧 +{QUANTIDADE_ML} ml",
+        font=("Segoe UI", 10, "bold"),
+        command=self.bebi_agua,
+        bg=azul,
+        fg="white",
+        activebackground=azul_escuro,
+        activeforeground="white",
+        relief="flat",
+        cursor="hand2",
+        height=2
+      )
+
+      botao_adicionar.grid(
+        row=0,
+        column=0,
+        sticky="ew",
+        padx=(0, 5),
+        pady=4
+      )
+
+      botao_zerar = tk.Button(
+        botoes,
+        text="↺ Zerar",
+        font=("Segoe UI", 10),
+        command=self.zerar_agua,
+        bg=cinza_botao,
+        fg=texto,
+        activebackground="#DDE4EC",
+        relief="flat",
+        cursor="hand2",
+        height=2
+      )
+
+      botao_zerar.grid(
+        row=0,
+        column=1,
+        sticky="ew",
+        padx=(5, 0),
+        pady=4
+      )
+
+      self.botao_pausar = tk.Button(
+        botoes,
+        text="⏸ Pausar",
+        font=("Segoe UI", 10),
+        command=self.alternar_pausa,
+        bg=cinza_botao,
+        fg=texto,
+        activebackground="#DDE4EC",
+        relief="flat",
+        cursor="hand2",
+        height=2
+      )
+
+      self.botao_pausar.grid(
+        row=1,
+        column=0,
+        sticky="ew",
+        padx=(0, 5),
+        pady=4
+      )
+
+      botao_sair = tk.Button(
+        botoes,
+        text="Sair",
+        font=("Segoe UI", 10),
+        command=self.sair_programa,
+        bg=cinza_botao,
+        fg=texto_secundario,
+        activebackground="#DDE4EC",
+        relief="flat",
+        cursor="hand2",
+        height=2
+      )
+
+      botao_sair.grid(
+        row=1,
+        column=1,
+        sticky="ew",
+        padx=(5, 0),
+        pady=4
+      )
     def alterar_intervalo(self, event=None):
         opcao = self.opcao_intervalo.get()
         if opcao == "Teste-10 segundos":
@@ -398,28 +678,49 @@ class LembreteAgua:
         self.agendar_aviso()
                     
     def alternar_pausa(self):
-        if not self.pausado:
-            #Pausar
-            self.pausado = True
-            
-            if self.timer_contagem is not None:
-                try:
-                    self.root.after_cancel(self.timer_contagem)
-                except:
-                    pass
-                
-                self.timer_contagem = None
-                self.label_proximo_aviso.config(
-                    text="Lembretes pausados"
+
+       if not self.pausado:
+
+        self.pausado = True
+
+        if self.timer_contagem is not None:
+            try:
+                self.root.after_cancel(
+                    self.timer_contagem
                 )
-                self.botao_pausar.config(text="Continuar lembretes")
-        else:
-            #Continuar
-            self.pausado = False
-            
-            self.botao_pausar.config(text="Pausar lembretes")
-            self.agendar_aviso()        
-                            
+            except:
+                pass
+
+            self.timer_contagem = None
+
+        self.label_proximo_aviso.config(
+            text="Pausado"
+        )
+
+        self.label_status.config(
+            text="● Pausado",
+            fg="#F59E0B"
+        )
+
+        self.botao_pausar.config(
+            text="▶ Continuar"
+        )
+
+       else:
+
+        self.pausado = False
+
+        self.label_status.config(
+            text="● Ativo",
+            fg="#16A34A"
+        )
+
+        self.botao_pausar.config(
+            text="⏸ Pausar"
+        )
+
+        self.agendar_aviso()   
+
     def agendar_aviso(self):
         
         if self.pausado:
@@ -439,9 +740,8 @@ class LembreteAgua:
         minutos, segundos = divmod(self.segundos_restantes, 60)
         
         self.label_proximo_aviso.config(
-            text=f"Próximo aviso: {minutos:02d}:{segundos:02d}"
-        )
-
+    text=f"{minutos:02d}:{segundos:02d}"
+)
         if self.segundos_restantes > 0:
             self.segundos_restantes -= 1
             self.timer_contagem = self.root.after(1000, self.atualizar_contagem)
@@ -527,16 +827,17 @@ class LembreteAgua:
         )
         botao_bebi.pack(pady=8)
 
-        botao_adiar=tk.Button(
+        botao_adiar = tk.Button(
             self.popup,
             text="⏰ Adiar lembrete",
-            font=("Segoe UI",10,"bold"),
-            command= self.adiar_aviso,
+            font=("Segoe UI", 10, "bold"),
+            command=self.adiar_aviso,
             bg="white",
             fg="#1976D2",
             relief="flat",
             cursor="hand2"
         )
+        botao_adiar.pack(pady=4)
 
         dica = tk.Label(
             self.popup,
@@ -584,22 +885,46 @@ class LembreteAgua:
            self.fechar_aviso()
         
     def atualizar_janela_principal(self):
-        
-        self.label_total.config(
-            text=f"{self.total_bebido}/{META_DIARIA_ML} ml"
+
+       self.label_total.config(
+         text=f"{self.total_bebido} / {META_DIARIA_ML} ml"
+    )
+
+       self.barra_principal["value"] = min(
+         self.total_bebido,
+         META_DIARIA_ML
+    )
+
+       percentual = min(
+         int((self.total_bebido / META_DIARIA_ML) * 100),
+         100
+    )
+
+       self.label_percentual.config(
+         text=f"{percentual}% da meta diária"
+    )
+
+       faltam = max(
+        META_DIARIA_ML - self.total_bebido,
+        0
+    )
+
+       if faltam > 0:
+        self.label_faltam.config(
+            text=f"Faltam {faltam} ml para atingir sua meta",
+            fg="#64748B"
         )
-        
-        self.barra_principal.config(
-            value=min(self.total_bebido, META_DIARIA_ML)
+       else:
+        self.label_faltam.config(
+            text="✓ Meta diária atingida!",
+            fg="#16A34A"
         )
-        
-        self.barra_principal["value"] = min(self.total_bebido, META_DIARIA_ML)
-         
     def fechar_aviso(self, event=None):
         self.destruir_popup()
 
         #Começa novamente o intervalo normal
         self.agendar_aviso()
+
     def adiar_aviso(self):
         self.destruir_popup()
 
@@ -610,8 +935,8 @@ class LembreteAgua:
                 pass
             self.timer_contagem = None
 
-            self.segundos_restantes = ADIAR_AVISO_SEGUNDOS
-            self.atualizar_contagem()
+        self.segundos_restantes = ADIAR_AVISO_SEGUNDOS
+        self.atualizar_contagem()
 
 
 # =========================
