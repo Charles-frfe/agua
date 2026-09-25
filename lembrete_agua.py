@@ -28,7 +28,7 @@ class LembreteAgua:
         self.root = root
         
         self.root.title("Lembrete de Água")
-        self.root.geometry("450x560")
+        self.root.geometry("450x600")
         self.root.resizable(False, False)
         self.root.configure(bg="#F4F7FB")
 
@@ -91,14 +91,14 @@ class LembreteAgua:
             return "Teste-10 segundos", INTERVALO_SEGUNDOS
            
     def salvar_dados(self):
-                dados = {
-                    "data":str(datetime.date.today()),
-                    "total_bebido":self.total_bebido,
-                    "intervalo_segundos":self.intervalo_segundos,
-                    "intervalo_nome":self.opcao_intervalo.get()
-                }
+      dados = {
+        "data":str(datetime.date.today()),
+        "total_bebido":self.total_bebido,
+        "intervalo_segundos":self.intervalo_segundos,
+        "intervalo_nome":self.opcao_intervalo.get()
+    }
                 
-                with open(ARQUIVO_DADOS, "w", encoding="utf-8") as arquivo:
+      with open(ARQUIVO_DADOS, "w", encoding="utf-8") as arquivo:
                     json.dump(dados, arquivo, indent=4, ensure_ascii=False)
 
     def verificar_mudanca_dia(self):
@@ -110,8 +110,9 @@ class LembreteAgua:
 
             self.salvar_dados()
             self.atualizar_janela_principal()
+            self.atualizar_menu_bandeja()
 
-        print("Novo dia: consumo de água zerado.")
+            print("Novo dia: consumo de água zerado.")
 
     # Verifica novamente a cada minuto
         self.root.after(
@@ -173,7 +174,27 @@ class LembreteAgua:
             pass
 
         self.root.after(100, self.processar_fila)
-        
+    def texto_consumo_bandeja(self):
+        return f"💧 Hoje: {self.total_bebido}/{META_DIARIA_ML} ml"
+
+    def texto_pausa_bandeja(self):
+        if self.pausado:
+            return "▶ Continuar lembretes"
+
+        return "⏸ Pausar lembretes"
+
+    def intervalo_marcado(self,nome):
+        def verificar(item):
+           return self.opcao_intervalo.get() == nome
+        return verificar
+
+    def atualizar_menu_bandeja(self):
+        if self.icone_bandeja is None:
+            try:
+              self.icone_bandeja.update_menu()
+            except:
+                pass
+
     def criar_icone_bandeja(self):
         
         imagem = Image.new("RGB", (64, 64), "white")
@@ -196,7 +217,7 @@ class LembreteAgua:
         menu_intervalo = pystray.Menu(
             
             pystray.MenuItem(
-                "Teste-10 segundos",
+                "Teste (10 segundos)",
                 lambda icon, item:
                 self.solicitar_intervalo("Teste-10 segundos")
             ),
@@ -228,21 +249,30 @@ class LembreteAgua:
             
             # Menu principal
         menu=pystray.Menu(
-                
-            pystray.MenuItem(
-                    f"💧 Bebi {QUANTIDADE_ML} ml",
-                    self.solicitar_beber
-                ),
-            
-            pystray.MenuItem(
-                    "🔄 Resetar Consumo",
-                    self.solicitar_zerar
-                ),
 
-            pystray.MenuItem(
-                    "⏸️ Pausar/Continuar lembretes",
-                    self.solicitar_pausa
-                ),
+            #Informação -- não clicável
+         pystray.MenuItem(
+           self.texto_consumo_bandeja(),
+           lambda icon, item: None,
+           enabled=False
+        ),    
+
+         pystray.Menu.SEPARATOR,
+
+         pystray.MenuItem(
+          f"💧 Bebi {QUANTIDADE_ML} ml",
+          self.solicitar_beber
+        ),
+            
+        pystray.MenuItem(
+         "🔄 Resetar Consumo",
+         self.solicitar_zerar
+        ),
+
+        pystray.MenuItem(
+          self.texto_pausa_bandeja(),
+          self.solicitar_pausa
+        ),
             
             pystray.MenuItem(
                     "Intervalo",
@@ -676,37 +706,38 @@ class LembreteAgua:
             self.intervalo_segundos = 90 * 60
         self.salvar_dados()
         self.agendar_aviso()
+        self.atualizar_menu_bandeja()
                     
     def alternar_pausa(self):
 
-       if not self.pausado:
+      if not self.pausado:
 
-        self.pausado = True
+         self.pausado = True
 
-        if self.timer_contagem is not None:
+         if self.timer_contagem is not None:
             try:
-                self.root.after_cancel(
-                    self.timer_contagem
-                )
+              self.root.after_cancel(
+              self.timer_contagem
+            )
             except:
                 pass
 
             self.timer_contagem = None
 
-        self.label_proximo_aviso.config(
+         self.label_proximo_aviso.config(
             text="Pausado"
         )
 
-        self.label_status.config(
+         self.label_status.config(
             text="● Pausado",
             fg="#F59E0B"
         )
 
-        self.botao_pausar.config(
+         self.botao_pausar.config(
             text="▶ Continuar"
         )
 
-       else:
+      else:
 
         self.pausado = False
 
@@ -719,7 +750,8 @@ class LembreteAgua:
             text="⏸ Pausar"
         )
 
-        self.agendar_aviso()   
+        self.agendar_aviso()
+        self.atualizar_menu_bandeja()   
 
     def agendar_aviso(self):
         
@@ -735,135 +767,233 @@ class LembreteAgua:
         self.atualizar_contagem()
 
     def atualizar_contagem(self):
-        if self.pausado:
+      if self.pausado:
             return
-        minutos, segundos = divmod(self.segundos_restantes, 60)
+      
+      minutos, segundos = divmod(self.segundos_restantes, 60)
         
-        self.label_proximo_aviso.config(
-    text=f"{minutos:02d}:{segundos:02d}"
+      self.label_proximo_aviso.config(
+      text=f"{minutos:02d}:{segundos:02d}"
 )
-        if self.segundos_restantes > 0:
-            self.segundos_restantes -= 1
-            self.timer_contagem = self.root.after(1000, self.atualizar_contagem)
-        else:
-            self.timer_contagem = None
-            self.mostrar_aviso()
+      if self.segundos_restantes > 0:
+         self.segundos_restantes -= 1
+         self.timer_contagem = self.root.after(1000, self.atualizar_contagem)
+      else:
+         self.timer_contagem = None
+         self.mostrar_aviso()
             
+
     def mostrar_aviso(self):
-        """Mostra o aviso na tela."""
+      """Mostra o aviso de hidratação."""
 
-        self.popup = tk.Toplevel(self.root)
+      self.popup = tk.Toplevel(self.root)
 
-        # Remove barra normal da janela
-        self.popup.overrideredirect(True)
+      self.popup.overrideredirect(True)
+      self.popup.attributes("-topmost", True)
 
-        # Mantém acima das outras janelas
-        self.popup.attributes("-topmost", True)
+      largura = 360
+      altura = 320
 
-        largura = 340
-        altura = 300
+      largura_tela = self.popup.winfo_screenwidth()
 
-        largura_tela = self.popup.winfo_screenwidth()
+      x = largura_tela - largura - 30
+      y = 50
 
-        # Canto superior direito
-        x = largura_tela - largura - 30
-        y = 50
+      self.popup.geometry(
+        f"{largura}x{altura}+{x}+{y}"
+    )
 
-        self.popup.geometry(
-            f"{largura}x{altura}+{x}+{y}"
+      # =========================
+      # CORES
+      # =========================
+
+      fundo = "#F4F7FB"
+      branco = "#FFFFFF"
+      azul = "#1976D2"
+      azul_escuro = "#155AA8"
+      texto = "#1E293B"
+      texto_secundario = "#64748B"
+      borda = "#E2E8F0"
+
+      self.popup.configure(bg=fundo)
+
+      # =========================
+      # CARD
+      # =========================
+
+      card = tk.Frame(
+        self.popup,
+        bg=branco,
+        highlightbackground=borda,
+        highlightthickness=1
+    )
+
+      card.pack(
+        fill="both",
+        expand=True,
+        padx=12,
+        pady=12
+    )
+
+      # =========================
+      # CABEÇALHO
+      # =========================
+
+      cabecalho = tk.Frame(
+        card,
+        bg=branco
+     )
+
+      cabecalho.pack(
+        fill="x",
+        padx=18,
+        pady=(18, 4)
+      )
+
+      tk.Label(
+        cabecalho,
+        text="💧",
+        font=("Segoe UI Emoji", 22),
+        bg=branco
+    ).pack(side="left")
+
+      tk.Label(
+        cabecalho,
+        text="Hora de beber água",
+        font=("Segoe UI", 16, "bold"),
+        bg=branco,
+        fg=texto
+    ).pack(
+        side="left",
+        padx=(8, 0)
+    )
+
+      # =========================
+      # MENSAGEM
+      # =========================
+
+      tk.Label(
+        card,
+        text=f"Beba aproximadamente {QUANTIDADE_ML} ml de água",
+        font=("Segoe UI", 10),
+        bg=branco,
+        fg=texto_secundario
+      ).pack(
+        anchor="w",
+        padx=18,
+        pady=(4, 10)
+    )
+
+      # =========================
+      # TOTAL
+      # =========================
+
+      tk.Label(
+        card,
+        text=f"{self.total_bebido} / {META_DIARIA_ML} ml hoje",
+        font=("Segoe UI", 15, "bold"),
+        bg=branco,
+        fg=azul
+      ).pack(
+        anchor="w",
+        padx=18
+    )
+
+      barra = ttk.Progressbar(
+        card,
+        style="Agua.Horizontal.TProgressbar",
+        orient="horizontal",
+        mode="determinate",
+        maximum=META_DIARIA_ML,
+        value=min(
+            self.total_bebido,
+            META_DIARIA_ML
         )
+    )
 
-        self.popup.configure(bg="#1976D2")
+      barra.pack(
+        fill="x",
+        padx=18,
+        pady=(8, 14)
+      )
 
-        titulo = tk.Label(
-            self.popup,
-            text="💧 Hora de beber água!",
-            font=("Segoe UI", 16, "bold"),
-            bg="#1976D2",
-            fg="white"
-        )
+      # =========================
+      # BOTÃO PRINCIPAL
+      # =========================
 
-        titulo.pack(pady=(25, 5))
+      botao_bebi = tk.Button(
+        card,
+        text=f"💧 Bebi {QUANTIDADE_ML} ml",
+        font=("Segoe UI", 10, "bold"),
+        command=self.bebi_agua,
+        bg=azul,
+        fg="white",
+        activebackground=azul_escuro,
+        activeforeground="white",
+        relief="flat",
+        cursor="hand2",
+        height=2
+    )
 
-        mensagem = tk.Label(
-            self.popup,
-            text=f"Beba aproximadamente {QUANTIDADE_ML} ml de água",
-            font=("Segoe UI", 11),
-            bg="#1976D2",
-            fg="white"
-        )
+      botao_bebi.pack(
+        fill="x",
+        padx=18,
+        pady=(0, 7)
+    )
 
-        mensagem.pack()
-        
-        total=tk.Label(
-            self.popup,
-            text=f"Hoje: {self.total_bebido}/{META_DIARIA_ML} ml",
-            font=("Segoe UI", 10, "bold"),
-            bg="#1976D2",
-            fg="White"
-        )
-        
-        total.pack(pady=5)
-        
-        barra=ttk.Progressbar(
-            self.popup,
-            orient="horizontal",
-            length=250,
-            mode="determinate",
-            maximum=META_DIARIA_ML,
-            value=min(self.total_bebido, META_DIARIA_ML)
-        )
-        barra.pack(pady=5)
-        
-        botao_bebi=tk.Button(
-            self.popup,
-            text=f"💧 Bebi {QUANTIDADE_ML} ml",
-            font=("Segoe UI",10,"bold"),
-            command= self.bebi_agua,
-            bg="white",
-            fg="#1976D2",
-            relief="flat",
-            cursor="hand2"
-        )
-        botao_bebi.pack(pady=8)
+    # =========================
+    # ADIAR
+    # =========================
 
-        botao_adiar = tk.Button(
-            self.popup,
-            text="⏰ Adiar lembrete",
-            font=("Segoe UI", 10, "bold"),
-            command=self.adiar_aviso,
-            bg="white",
-            fg="#1976D2",
-            relief="flat",
-            cursor="hand2"
-        )
-        botao_adiar.pack(pady=4)
+      botao_adiar = tk.Button(
+        card,
+        text="⏰ Lembrar novamente em 10 minutos",
+        font=("Segoe UI", 9),
+        command=self.adiar_aviso,
+        bg="#E9EEF5",
+        fg=texto,
+        activebackground="#DDE4EC",
+        relief="flat",
+        cursor="hand2",
+        height=2
+    )
 
-        dica = tk.Label(
-            self.popup,
-            text="Clique para fechar",
-            font=("Segoe UI", 9),
-            bg="#1976D2",
-            fg="white"
-        )
+      botao_adiar.pack(
+        fill="x",
+        padx=18
+    )
 
-        dica.pack(pady=8)
+    # =========================
+    # FECHAR
+    # =========================
 
-        # Clicar em qualquer parte fecha o aviso
-        
-        titulo.bind("<Button-1>", self.fechar_aviso)
-        mensagem.bind("<Button-1>", self.fechar_aviso)
-        dica.bind("<Button-1>", self.fechar_aviso)
+      dica = tk.Label(
+        card,
+        text="Fechar aviso",
+        font=("Segoe UI", 8),
+        bg=branco,
+        fg=texto_secundario,
+        cursor="hand2"
+    )
 
-        # Fecha sozinho depois de alguns segundos
-        self.timer_fechar = self.popup.after(
-            DURACAO_AVISO_SEGUNDOS * 1000,
-            self.fechar_aviso
-        )
+      dica.pack(
+        pady=(10, 12)
+    )
 
+      dica.bind(
+        "<Button-1>",
+        self.fechar_aviso
+    )
+
+      # Fecha automaticamente
+      self.timer_fechar = self.popup.after(
+        DURACAO_AVISO_SEGUNDOS * 1000,
+        self.fechar_aviso
+    )
+    
     def zerar_agua(self):
         confirmar = messagebox.askyesno(
-            "Zerar água",
+            "Resetar consumo de água",
             "Deseja zerar a quantidade de água bebida hoje?"
         )
         if not confirmar:
@@ -872,6 +1002,7 @@ class LembreteAgua:
         self.total_bebido = 0
         self.salvar_dados()
         self.atualizar_janela_principal()
+        self.atualizar_menu_bandeja()
 
     def bebi_agua(self):
         self.total_bebido += QUANTIDADE_ML
@@ -879,8 +1010,9 @@ class LembreteAgua:
         self.salvar_dados()
         
         self.atualizar_janela_principal()
+
+        self.atualizar_menu_bandeja()
         
-        print(f"Água bebida hoje:{self.total_bebido} ml")
         if self.popup is not None:
            self.fechar_aviso()
         
