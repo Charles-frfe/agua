@@ -128,11 +128,8 @@ class LembreteAgua:
         self.root.focus_force()
     def solicitar_beber (self, icon=None, item=None):
         self.fila_acoes.put(("beber",None))
-
-    def solicitar_zerar(self, icon=None, item=None):
-        self.fila_acoes.put(("zerar",None))
-            
-    def solicitar_pausa(self, icon=None,  item=None):
+        
+    def solicitar_pausa(self, icon=None, item=None):
         self.fila_acoes.put(("pausa",None))
         
     def solicitar_intervalo(self, nome):
@@ -174,27 +171,7 @@ class LembreteAgua:
             pass
 
         self.root.after(100, self.processar_fila)
-    def texto_consumo_bandeja(self):
-        return f"💧 Hoje: {self.total_bebido}/{META_DIARIA_ML} ml"
-
-    def texto_pausa_bandeja(self):
-        if self.pausado:
-            return "▶ Continuar lembretes"
-
-        return "⏸ Pausar lembretes"
-
-    def intervalo_marcado(self,nome):
-        def verificar(item):
-           return self.opcao_intervalo.get() == nome
-        return verificar
-
-    def atualizar_menu_bandeja(self):
-        if self.icone_bandeja is not None:
-            try:
-              self.icone_bandeja.update_menu()
-            except:
-                pass
-
+        
     def criar_icone_bandeja(self):
         
         imagem = Image.new("RGB", (64, 64), "white")
