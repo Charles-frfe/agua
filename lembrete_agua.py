@@ -189,7 +189,7 @@ class LembreteAgua:
         return verificar
 
     def atualizar_menu_bandeja(self):
-        if self.icone_bandeja is None:
+        if self.icone_bandeja is not None:
             try:
               self.icone_bandeja.update_menu()
             except:
